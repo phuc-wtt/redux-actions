@@ -4,21 +4,21 @@ test_community_page() {
 
   # Variable
   file_path='./pages/community.js'
-  postActions='postActions'
+  actions_name='postActions'
   
   actions_arr=$(
-    grep -oP "(?<=${postActions}\.)\w+" "$file_path" |
+    grep -oP "(?<=${actions_name}\.)\w+" "$file_path" |
       sort | uniq
   )
   
-  #   b)each actions_using check if need to suffix Callback
+  # b)each actions_using check if need to suffix Callback
   while IFS= read -r action
   do
     is_duplicated=$(grep -oP "(const\s+${action})(\s+=)" "$file_path")
     if [ ! -z "$is_duplicated" ];
     then
       line_num=$(
-        grep -noP "(?<!${postActions}\.)${action}" "$file_path" |
+        grep -noP "(?<!${actions_name}\.)${action}" "$file_path" |
           grep -oP "^\d*(?=:)"
       )
       while IFS= read -r line
@@ -37,7 +37,16 @@ test_community_page() {
     fi
   done <<< $actions_arr
 
-
+  # c)remove the actions_name and dot
+  sed -i "s/${actions_name}\.//g" "$file_path"
+  # d)replace import actions_name with actions_using
+  destructuring_import_str=$(
+    echo $actions_arr |
+      sed "s/\s/, /g" |
+      sed -E "s/^(\w*)/{ \1/g" |
+      sed -E "s/(\w*)$/\1 }/g"
+  )
+  sed -i "s/import ${actions_name}/import ${destructuring_import_str}/g" "$file_path"
 
 
 }
