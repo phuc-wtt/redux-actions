@@ -3,8 +3,8 @@
 test_community_page() {
 
   # Variable
-  file_path='./pages/community.js'
-  actions_name='postActions'
+  file_path=$1
+  actions_name=$2
   
   actions_arr=$(
     grep -oP "(?<=${actions_name}\.)\w+" "$file_path" |
@@ -51,7 +51,7 @@ test_community_page() {
 
 }
 
-test_community_page
+test_community_page $1 $2
 
 
 

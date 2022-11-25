@@ -3,7 +3,7 @@
 test_postActions() {
 
   # Variable
-  file_path="./redux/actions/postActions.js"
+  file_path="$1"
 
 
   # I.rm Obj
@@ -34,7 +34,7 @@ test_postActions() {
 
 }
 
-test_postActions
+test_postActions $1
 
 # process per Actions
 # I.rm Obj
