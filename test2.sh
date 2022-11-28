@@ -25,14 +25,27 @@ test_community_page() {
       do
         to_be_replace=$(
           awk -v line=${line} 'NR==line' "$file_path" |
-            sed 's/(/\\(/g' | sed 's/)/\\)/g'
+            sed 's/\./\\./g' |
+            sed 's:\/:\\/:g' |
+            sed 's/(/\\(/g' | sed 's/)/\\)/g' |
+            sed 's/{/\\{/g' | sed 's/}/\\}/g' |
+            sed 's/\[/\\[/g' | sed 's/\]/\\]/g'
         )
         appended_action="${action}Callback"
         replace_string=$(
-          awk -v line=${line} -v action=${action} -v appended_action=${appended_action} 'NR==line {sub(action, appended_action); print}' "$file_path" |
-            sed 's/(/\\(/g' | sed 's/)/\\)/g'
+          awk -v line=${line} -v action=${action} -v appended_action=${appended_action} \
+            'NR==line {sub(action, appended_action); print}' "$file_path" |
+            sed 's/\./\\./g' |
+            sed 's:\/:\\/:g' |
+            sed 's/(/\\(/g' | sed 's/)/\\)/g' |
+            sed 's/{/\\{/g' | sed 's/}/\\}/g' |
+            sed 's/\[/\\[/g' | sed 's/\]/\\]/g'
         )
-        sed -i -E "s/${to_be_replace}/${replace_string}/g" "$file_path"
+        if [ ! -z "$replace_string" ];
+        then
+          sed -i -r "s@${to_be_replace}@${replace_string}@g" "$file_path"
+          continue;
+        fi
       done <<< $line_num
     fi
   done <<< $actions_arr

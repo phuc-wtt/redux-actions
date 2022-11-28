@@ -7,7 +7,7 @@ test_postActions() {
 
 
   # I.rm Obj
-  actions_name=$(grep -oP '(?<=export\sdefault\s)\w+' "$file_path")
+  actions_name=$(grep -oP '(?<=export\sdefault\s)(?!function\s)\w+' "$file_path")
 
   if [ ! -z "$actions_name" ];
     then
@@ -15,12 +15,24 @@ test_postActions() {
 
       line_num=$(echo "$line_num" | sed 's/$/d;/g')
       line_num=$(echo $line_num | sed 's/\s//g')
+
       if [ ! -z "$line_num" ];
       then
         sed -i "$line_num" "$file_path"
-        sed -i 's/^\}$//g' "$file_path"
+        bracket_line=$(grep -nP '^\}$' "$file_path" | grep -oP "^\d+" )
+        is_multi_bracket=$(echo "$bracket_line" | wc -l )
+        if [ "$is_multi_bracket" -gt 1 ];
+        then
+          bracket_last_line=$(echo $bracket_line | grep -oP "(?<=\s)\d+$")
+          sed -i "${bracket_last_line}d" "$file_path"
+        else
+          sed -i 's/^\}$//g' "$file_path"
+        fi
       fi
+    else
+      echo "$1"
   fi
+
 
   # II.explode actions-obj fields with export function
     # normal case
@@ -31,6 +43,7 @@ test_postActions() {
   sed -E -i 's/this\.//g' "$file_path"
   sed -E -i 's/^(\s{2})\}\,/\1};/g' "$file_path"
   
+
 
 }
 
