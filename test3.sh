@@ -7,7 +7,9 @@ test3() {
   actions_list=$(
     find "${actions_path}/" -maxdepth 1 -name "*.js" |
       # exclude redux/actions/types.js
-      sed '/types.js/d'
+      sed '/types.js/d' |
+      sed '/modalActions.js/d' |
+      sed '/toastActions.js/d'
   )
   actions_list_filtered="$actions_list"
 

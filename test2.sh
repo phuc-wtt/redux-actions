@@ -19,8 +19,9 @@ test_community_page() {
     then
       line_num=$(
         grep -noP "(?<!${actions_name}\.)${action}" "$file_path" |
-          grep -oP "^\d*(?=:)"
+          grep -oP "^\d*(?=:)" | sort | uniq
       )
+
       while IFS= read -r line
       do
         to_be_replace=$(
@@ -29,7 +30,8 @@ test_community_page() {
             sed 's:\/:\\/:g' |
             sed 's/(/\\(/g' | sed 's/)/\\)/g' |
             sed 's/{/\\{/g' | sed 's/}/\\}/g' |
-            sed 's/\[/\\[/g' | sed 's/\]/\\]/g'
+            sed 's/\[/\\[/g' | sed 's/\]/\\]/g' |
+            sed 's/|/\\|/g' 
         )
         appended_action="${action}Callback"
         replace_string=$(
@@ -39,7 +41,8 @@ test_community_page() {
             sed 's:\/:\\/:g' |
             sed 's/(/\\(/g' | sed 's/)/\\)/g' |
             sed 's/{/\\{/g' | sed 's/}/\\}/g' |
-            sed 's/\[/\\[/g' | sed 's/\]/\\]/g'
+            sed 's/\[/\\[/g' | sed 's/\]/\\]/g' |
+            sed 's/|/\\|/g' 
         )
         if [ ! -z "$replace_string" ];
         then
