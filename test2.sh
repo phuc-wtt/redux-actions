@@ -31,7 +31,7 @@ test_community_page() {
             sed 's/(/\\(/g' | sed 's/)/\\)/g' |
             sed 's/{/\\{/g' | sed 's/}/\\}/g' |
             sed 's/\[/\\[/g' | sed 's/\]/\\]/g' |
-            sed 's/|/\\|/g' 
+            sed 's/|/\\|/g' | sed 's/?/\\?/g'
         )
         appended_action="${action}Callback"
         replace_string=$(
@@ -42,7 +42,7 @@ test_community_page() {
             sed 's/(/\\(/g' | sed 's/)/\\)/g' |
             sed 's/{/\\{/g' | sed 's/}/\\}/g' |
             sed 's/\[/\\[/g' | sed 's/\]/\\]/g' |
-            sed 's/|/\\|/g' 
+            sed 's/|/\\|/g' | sed 's/?/\\?/g'
         )
         if [ ! -z "$replace_string" ];
         then
