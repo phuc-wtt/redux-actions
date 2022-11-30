@@ -161,6 +161,21 @@ action_using() {
   sed -i "s/import ${actions_name}/import ${destructuring_import_str}/g" "$file_path"
 }
 
+actions_service_phase_2() {
+  file_path={$1}
+
+  # rm all "import services" from prj
+  # get all service method: [service:file_path]
+  # check for duplicate method
+  # Each service method:
+    # grep in prj for "services.method" using_file
+      # Each using_file:
+      # rm the "services." && append "Service" to the method
+      # explode the import -> { methodService }
+    # append "Service" to export default
+
+}
+
 
 run() {
 
@@ -220,6 +235,9 @@ run() {
     fi
 
   done <<< $actions_list_filtered
+
+  # phase 2: rm services.method
+  actions_service_phase_2 "$file_path"
 
 }
 run
