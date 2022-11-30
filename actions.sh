@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test_postActions() {
+actions() {
 
   # Variable
   file_path="$1"
@@ -47,7 +47,7 @@ test_postActions() {
 
 }
 
-test_postActions $1
+actions $1
 
 # process per Actions
 # I.rm Obj

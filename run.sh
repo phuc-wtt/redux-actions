@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test3() {
+run() {
 
   # list action files
   actions_path="./redux/actions"
@@ -16,8 +16,8 @@ test3() {
   # Each file:
   while IFS= read -r action_file
   do
-    # execute test.sh
-    test_result=$(source test.sh "$action_file")
+    # execute actions.sh
+    test_result=$(source actions.sh "$action_file")
     # filter out not processed case
     if [ ! -z "$test_result" ];
     then
@@ -46,7 +46,7 @@ test3() {
     then
       while IFS= read -r using_file
       do
-        # execute test2.sh
+        # execute action_using.sh
         test2_action_name=$(
           grep -Eon "import.*${action_name}" "$using_file" |
             grep -oP "(?<=import\s)(\w+)\s+from.*(?=${action_name})" |
@@ -54,7 +54,7 @@ test3() {
         )
         if [ ! -z "${test2_action_name}" ];
         then
-          source test2.sh "$using_file" "$test2_action_name"
+          source action_using.sh "$using_file" "$test2_action_name"
         fi
       done <<< $using_file_list
     fi
@@ -62,26 +62,18 @@ test3() {
   done <<< $actions_list_filtered
 
 }
-test3
-
-
-# NOTE: EXCLUDE PropTypes
+run
 
 
 
 # list action files
 # Each file:
-  # execute test.sh
+  # execute actions.sh
   # filter out not processed case
 # Each filtered file:
   # search Action for usage in project, exclude its filename
   # Each file that using action:
-    # execute test2.sh
-
-
-
-
-#/home/phucnguyen/Projects/wtt/wttcms-frontend/components/GeneralComponents/TabPane/TabPaneAnnouncement.js
+    # execute action_using.sh
 
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test_community_page() {
+action_using() {
 
   # Variable
   file_path=$1
@@ -67,7 +67,7 @@ test_community_page() {
 
 }
 
-test_community_page $1 $2
+action_using $1 $2
 
 
 
