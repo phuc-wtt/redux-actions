@@ -165,14 +165,13 @@ actions_service_phase_2() {
   file_path={$1}
 
   # rm all "import services" from prj
-  # get all service method: [service:file_path]
-  # check for duplicate method
+  # get all service method: [service:file_path] && check for duplicate method
   # Each service method:
     # grep in prj for "services.method" using_file
       # Each using_file:
-      # rm the "services." && append "Service" to the method
+      # rm the "services." from "services.method" && append "Service" to the method
       # explode the import -> { methodService }
-    # append "Service" to export default
+    # append "Service" to export default in services/
 
 }
 
