@@ -23,13 +23,6 @@ then
   exit
 fi
 
-# extract working_folder
-else
-  file_path=$(echo "$file_path" | sed 's|/$||g')
-  working_folder=$(echo "$file_path" | grep -oP '(?<=/)\w+$')
-fi
-
-
 echo "File path: "$file_path""
 echo "File name: "$file_name""
 echo "File to exclude:"
