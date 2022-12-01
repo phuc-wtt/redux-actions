@@ -16,17 +16,18 @@ do
     *) echo "Invalid args"
   esac
 done
-if [ -z "$file_path" ];
-# require: file_path
-then exit
 
-# extract working_folder
-else
-  file_path=$(echo "$file_path" | sed 's|/$||g')
-  working_folder=$(echo "$file_path" | grep -oP '(?<=/)\w+$')
+# require: file_path
+if [ -z "$file_path" ];
+  then exit
+  # extract working_folder
+  else
+    file_path=$(echo "$file_path" | sed 's|/$||g')
+    working_folder=$(echo "$file_path" | grep -oP '(?<=/)\w+$')
 fi
 
-
+# Print out initial config
+echo "-------------- Input --------------"
 echo "File path: "$file_path""
 echo "File name: "$file_name""
 echo "File to exclude:"
@@ -34,11 +35,12 @@ for i in "${exclude_file[@]}"
 do
   echo "$i"
 done
+echo "-------------- Output --------------"
 
 actions() {
 
   # Variable
-  file_path="$1"
+  local file_path="$1"
 
   # I.1. rm Obj
   actions_name=$(grep -oP '(?<=export\sdefault\s)(?!function\s)\w+' "$file_path")
@@ -99,7 +101,7 @@ actions() {
 
 action_using() {
   # Variable
-  file_path=$1
+  local file_path=$1
   actions_name=$2
   
   actions_arr=$(
@@ -162,17 +164,84 @@ action_using() {
 }
 
 actions_service_phase_2() {
-  file_path={$1}
+  local file_path=$1
+  local import_placeholder="Service_Import_Goes_Here"
+  local suffix="Service"
 
-  # rm all "import services" from prj
+  # replace all "import services" with import_placeholder
+  file_list=$(
+    grep -rlP "import\s+service.*from.*/services" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF'
+  )
+  while IFS= read -r file
+  do
+    sed -i -E "s|import\s+service.*/services.|${import_placeholder}|g" "$file"
+  done <<< "$file_list"
+  
   # get all service method: [service:file_path] && check for duplicate method
-  # Each service method:
-    # grep in prj for "services.method" using_file
-      # Each using_file:
-      # rm the "services." from "services.method" && append "Service" to the method
-      # explode the import -> { methodService }
-    # append "Service" to export default in services/
+  local service_methods=$(
+    grep -roP "(?<=export\sfunction\s)\w+" "$file_path" --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF' | sed 's/(//g'
+  )
+    # check for duplicate methods name
+  local service_methods_dup=$(
+    echo "$service_methods" | grep -oP "(?<=:).*" | sort | uniq -d
+  )
+  if [ ! -z "$service_methods_dup" ];
+  then
+    echo "Duplicate method: ${service_methods_dup}"
+    echo "Duplicate method require manual handling."
+    # filter out duplicated method
+    while IFS= read -r dup_method
+    do
+      service_methods=$(
+        echo "$service_methods" | sed "s|${dup_method}||g" |
+          sed -E "/:$/d"
+      )
+    done <<< $service_methods_dup
+  fi
 
+  # Each service method:
+  while IFS= read -r method_with_path
+  do
+    # grep in prj for "Servicemethod" using_file
+    method=$(echo $method_with_path | grep -oP "(?<=:).*")
+    using_file=$(
+      grep -rlE "services\.${method}" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+        --exclude-dir=.next/ --exclude-dir=.git | awk 'NF' | sed 's/(//g'
+    )
+    if [ ! -z "$using_file" ];
+    then
+      # Each using_file:
+      while IFS= read -r file
+      do
+        # rm the "Service" from "Servicemethod" && append "Service" to the method
+        sed -i -E "s/services\.${method}/${method}${suffix}/g" "$file"
+        # search method export file && explode the import -> { methodService }
+        local export_file_name=$(
+          grep -rE "export\sfunction\s+${method}\(" "$file_path" |
+            grep -E '^.*:' | grep -oP '(?<=/)\w+(?=\.js)'
+        )
+
+          # check if import_placeholder exist
+          local is_existed=$(grep -nE "${import_placeholder}" "$file")
+          local exploded_import="import { ${method}${suffix} } from '@redux/actions/services/${export_file_name}'"
+          if [ ! -z "is_existed" ]
+          then
+            sed -i -E "s|${import_placeholder}|${exploded_import}|g" "$file"
+          # else add import to beginning of file
+          else
+            sed -i -E "1s/^/${exploded_import}" "$file"
+          fi
+      done <<< $using_file
+    fi
+  done <<< $service_methods
+
+  # append "Service" to export default in services/
+
+  
+
+  # check if any left out import_placeholder
 }
 
 
@@ -235,17 +304,13 @@ run() {
 
   done <<< $actions_list_filtered
 
-  # phase 2: rm services.method
+  # phase 2: rm Servicemethod
   actions_service_phase_2 "$file_path"
 
 }
 run
 
 
-# exclude redux/actions/types.js
-# sed '/types.js/d' |
-# sed '/modalActions.js/d' |
-# sed '/toastActions.js/d'
 
 
 # list action files
