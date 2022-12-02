@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# cmd: ./action-services.sh -p "./redux/actions/services" -x "index"
+
+
+base_name=$(echo $(basename "$0"))
+echo "Executing $base_name"
 file_path=""
 max_depth=1
 file_name="*.js"
@@ -165,18 +170,29 @@ action_using() {
 
 actions_service_phase_2() {
   local file_path=$1
-  local import_placeholder="Service_Import_Goes_Here"
   local suffix="Service"
+  local import_placeholder="// SERVICE_IMPORT_PLACEHOLDER"
 
   # replace all "import services" with import_placeholder
   file_list=$(
-    grep -rlP "import\s+service.*from.*/services" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+    grep -rlP "import\s+service[s]\s+from\s+.*/services." ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
       --exclude-dir=.next/ --exclude-dir=.git | awk 'NF'
   )
   while IFS= read -r file
   do
-    sed -i -E "s|import\s+service.*/services.|${import_placeholder}|g" "$file"
+    sed -i -E "s|import\s+service[s]\s+from\s+.*/services.|${import_placeholder}|g" "$file"
   done <<< "$file_list"
+    # in case 'import services, { ... } '
+  file_list_extra=$(
+    grep -rnP "import\s+service[s].*/services." ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF' |grep -o '^.*:.*:'
+  )
+  while IFS= read -r line
+  do
+    local extra_file=$(echo "$line" | sed 's|:.*||g' )
+    local extra_line_num=$(echo "$line" | grep -oP '\d+' )
+    sed -i "${extra_line_num}s|^|${import_placeholder}\n|" "$extra_file"
+  done <<< "$file_list_extra"
   
   # get all service method: [service:file_path] && check for duplicate method
   local service_methods=$(
@@ -207,7 +223,7 @@ actions_service_phase_2() {
     # grep in prj for "Servicemethod" using_file
     method=$(echo $method_with_path | grep -oP "(?<=:).*")
     using_file=$(
-      grep -rlE "services\.${method}" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      grep -rlE "services\.${method}\(" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
         --exclude-dir=.next/ --exclude-dir=.git | awk 'NF' | sed 's/(//g'
     )
     if [ ! -z "$using_file" ];
@@ -215,7 +231,7 @@ actions_service_phase_2() {
       # Each using_file:
       while IFS= read -r file
       do
-        # rm the "Service" from "Servicemethod" && append "Service" to the method
+        # rm the "services" from "services.method" && append "Service" to the method
         sed -i -E "s/services\.${method}/${method}${suffix}/g" "$file"
         # search method export file && explode the import -> { methodService }
         local export_file_name=$(
@@ -223,25 +239,42 @@ actions_service_phase_2() {
             grep -E '^.*:' | grep -oP '(?<=/)\w+(?=\.js)'
         )
 
+        # append "Service" to export default in services/
           # check if import_placeholder exist
-          local is_existed=$(grep -nE "${import_placeholder}" "$file")
-          local exploded_import="import { ${method}${suffix} } from '@redux/actions/services/${export_file_name}'"
-          if [ ! -z "is_existed" ]
-          then
-            sed -i -E "s|${import_placeholder}|${exploded_import}|g" "$file"
+        local is_existed=$(grep -nE "${import_placeholder}" "$file")
+        local exploded_import="import { ${method}${suffix} } from '@redux/actions/services/${export_file_name}'"
+        if [ ! -z "${is_existed}" ]
+        then
+          sed -i "\|${import_placeholder}|a ${exploded_import}" "$file"
           # else add import to beginning of file
-          else
-            sed -i -E "1s/^/${exploded_import}" "$file"
-          fi
+        else
+          echo "import_placeholder not found in: ${file}"
+        fi
       done <<< $using_file
     fi
   done <<< $service_methods
 
-  # append "Service" to export default in services/
+  # clean up import_placeholder
+  remaining_placeholder=$(
+    grep -rlE "${import_placeholder}" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git --exclude="$base_name"  | awk 'NF'
+  )
+  escaped_import_placeholder=$(echo "$import_placeholder" | sed 's|/|\\/|g')
+  while IFS= read -r remaining_file
+  do
+    sed -i "/${escaped_import_placeholder}/d" "$remaining_file"
+  done <<< $remaining_placeholder
 
-  
+  # special case clean up: import services, {...}
+  excess_services_import=$(
+    grep -rlE "import\s+service[s].*services." ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF'
+  )
+  while IFS= read -r excess_file
+  do
+    sed -i "s|(services)?||g" "$excess_file"
+  done <<< $excess_services_import
 
-  # check if any left out import_placeholder
 }
 
 
