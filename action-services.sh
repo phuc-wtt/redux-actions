@@ -156,20 +156,49 @@ action_using() {
     fi
   done <<< $actions_arr
 
+  # append Service to method
+  sed -i -E "s/${actions_name}\.(\w+)\(/\1Service(/g" "$file_path"
   # c)remove the actions_name and dot
   sed -i "s/${actions_name}\.//g" "$file_path"
   # d)replace import actions_name with actions_using
   destructuring_import_str=$(
-    echo $actions_arr |
-      sed "s/\s/, /g" |
-      sed -E "s/^(\w*)/{ \1/g" |
+  echo $actions_arr | sed -E "s/(\w+)/\1Service/g" |sed "s/\s/, /g" | sed -E "s/^(\w*)/{ \1/g" |
       sed -E "s/(\w*)$/\1 }/g"
   )
   sed -i "s/import ${actions_name}/import ${destructuring_import_str}/g" "$file_path"
 }
 
+query_string_helper_handler() {
+
+  local string_helper_path="./redux/actions/services/queryString.js"
+  local string_helper_all_method=$(
+    grep -oP '(?<=export\sfunction\s)\w+' "$string_helper_path"
+  )
+
+  local string_helper_import_list=$(
+    grep -rlP "import.*queryStringHelper.*" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF'
+  )
+  echo "$string_helper_import_list"
+  while IFS= read -r helper_using_file
+  do
+    while IFS= read -r helper_method
+    do
+      # check if helper_method in use
+      local is_in_use=$(grep -oE "${helper_method}" "$helper_using_file")
+      if [ ! -z "$is_in_use" ];
+      then
+        sed -i -E "s/queryStringHelper\.(${helper_method})\(/\1Service(/g" "$helper_using_file"
+        sed -i "\|{ queryStringHelper }|a import { ${helper_method}Service } from '${string_helper_path}'" "$helper_using_file"
+      fi
+    done <<< $string_helper_all_method
+  done <<< $string_helper_import_list
+
+}
+
 actions_service_phase_2() {
   local file_path=$1
+  local actions_list_filtered=$2
   local suffix="Service"
   local import_placeholder="// SERVICE_IMPORT_PLACEHOLDER"
 
@@ -239,19 +268,19 @@ actions_service_phase_2() {
             grep -E '^.*:' | grep -oP '(?<=/)\w+(?=\.js)'
         )
 
-        # append "Service" to export default in services/
-          # check if import_placeholder exist
+        # replace import with exploded one
         local is_existed=$(grep -nE "${import_placeholder}" "$file")
         local exploded_import="import { ${method}${suffix} } from '@redux/actions/services/${export_file_name}'"
         if [ ! -z "${is_existed}" ]
         then
           sed -i "\|${import_placeholder}|a ${exploded_import}" "$file"
-          # else add import to beginning of file
+          # else log out the file_name
         else
           echo "import_placeholder not found in: ${file}"
         fi
       done <<< $using_file
     fi
+
   done <<< $service_methods
 
   # clean up import_placeholder
@@ -265,15 +294,37 @@ actions_service_phase_2() {
     sed -i "/${escaped_import_placeholder}/d" "$remaining_file"
   done <<< $remaining_placeholder
 
-  # special case clean up: import services, {...}
-  excess_services_import=$(
+  # clean up: import services
+  local excess_services_import=$(
     grep -rlE "import\s+service[s].*services." ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
-      --exclude-dir=.next/ --exclude-dir=.git | awk 'NF'
+      --exclude-dir=.next/ --exclude-dir=.git --exclude="$base_name" | awk 'NF'
   )
   while IFS= read -r excess_file
   do
-    sed -i "s|(services)?||g" "$excess_file"
+    sed -i "/import service/d" "$excess_file"
   done <<< $excess_services_import
+  # # clean up: import { queryStringHelper }
+  # local excess_string_helper_import=$(
+  #   grep -rlE "import.*queryStringHelper.*" ./ --exclude-dir=node_modules/ --exclude-dir=out/ \
+  #     --exclude-dir=.next/ --exclude-dir=.git --exclude="$base_name" | awk 'NF'
+  # )
+  # while IFS= read -r excess_helper_file
+  # do
+  #   sed -i "/import/d" "$excess_helper_file"
+  # done <<< $excess_string_helper_import
+
+
+
+
+  # append "Service" to export default in services/
+  while IFS= read -r service_file
+  do
+    sed -E -i 's/(export function )(\w+)/\1\2Service/g' "$service_file"
+  done <<< $actions_list_filtered
+
+  # TODO: check services/ imports
+  # TODO: if method define in-file no need for import
+  # TODO: check services/tag.js
 
 }
 
@@ -338,7 +389,10 @@ run() {
   done <<< $actions_list_filtered
 
   # phase 2: rm Servicemethod
-  actions_service_phase_2 "$file_path"
+    # get rid queryStringHelper
+    query_string_helper_handler "$file_path" # special case, higher priority
+  actions_service_phase_2 "$file_path" "$actions_list_filtered"
+
 
 }
 run
